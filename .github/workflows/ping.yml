@@ -1,0 +1,27 @@
+name: Background Multi-Site Ping Engine
+
+on:
+  schedule:
+    # প্রতি ৫ মিনিট পরপর ব্যাকগ্রাউন্ড ইঞ্জিন সক্রিয় হবে
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-all-sites:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Requests to Websites
+        run: |
+          echo "Starting multi-site ping batch..."
+
+          # আপনার পছন্দমতো ওয়েবসাইটগুলো নিচে যোগ বা পরিবর্তন করতে পারেন
+          SITES=(
+            "https://example.com"
+            "https://google.com"
+          )
+
+          for SITE in "${SITES[@]}"; do
+            echo "Requesting: $SITE"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "$SITE")
+            echo "Response Status Code for $SITE: $HTTP_CODE"
+          done
