@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>অ্যাডভান্সড পিং & মনিটরিং ড্যাশবোর্ড</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f0f2f5; color: #333; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        h2 { margin-bottom: 15px; color: #1a73e8; font-size: 20px; }
+        
+        .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 5px; outline: none; }
+        input[type="url"] { flex: 2; min-width: 200px; }
+        input[type="number"] { flex: 1; min-width: 100px; }
+        
+        button { padding: 10px 18px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-add { background: #28a745; color: white; }
+        .btn-add:hover { background: #218838; }
+        .btn-delete { background: #dc3545; color: white; padding: 5px 10px; font-size: 12px; }
+        .btn-toggle-on { background: #007bff; color: white; }
+        .btn-toggle-off { background: #6c757d; color: white; }
+        
+        .site-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .site-table th, .site-table td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
+        .site-table th { background: #f8f9fa; }
+        
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .badge-active { background: #d4edda; color: #155724; }
+        .badge-inactive { background: #f8d7da; color: #721c24; }
+        
+        .config-box { background: #e8f0fe; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .config-box input { width: 100%; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2>⚙️ সিস্টেম কনফিগারেশন & ব্যাকগ্রাউন্ড ইঞ্জিনের অন/অফ</h2>
+        <div class="config-box">
+            <input type="text" id="ghUser" placeholder="GitHub Username">
+            <input type="text" id="ghRepo" placeholder="Repository Name">
+            <input type="password" id="ghToken" placeholder="GitHub Personal Access Token (PAT)">
+        </div>
+        <button class="btn-toggle-on" onclick="toggleEngine('enable')">▶ ব্যাকগ্রাউন্ড পিং ইঞ্জিন অন করুন</button>
+        <button class="btn-toggle-off" onclick="toggleEngine('disable')">⏸ ব্যাকগ্রাউন্ড পিং ইঞ্জিন অফ করুন</button>
+        <span id="engineStatus" style="margin-left: 10px; font-weight: bold;"></span>
+    </div>
+
+    <div class="card">
+        <h2>➕ নতুন ওয়েবসাইট যোগ করুন</h2>
+        <div class="form-row">
+            <input type="url" id="newUrl" placeholder="ওয়েবসাইট URL (যেমন: https://mywebsite.com)" required>
+            <input type="number" id="newInterval" placeholder="টাইমার (মিনিট)" min="1" value="5" required>
+            <button class="btn-add" onclick="addSite()">যোগ করুন</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🌐 মেনিটরড ওয়েবসাইটসমূহ (Monitored List)</h2>
+        <table class="site-table">
+            <thead>
+                <tr>
+                    <th>URL</th>
+                    <th>ইন্টারভাল (মিনিট)</th>
+                    <th>মোট রিকোয়েস্ট</th>
+                    <th>শেষ চেক</th>
+                    <th>স্ট্যাটাস</th>
+                    <th>অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody id="siteList">
+                <!-- JavaScript থেকে ডাটা এখানে আসবে -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let sites = JSON.parse(localStorage.getItem('advanced_ping_sites')) || [];
+
+    function saveAndRender() {
+        localStorage.setItem('advanced_ping_sites', JSON.stringify(sites));
+        renderSites();
+    }
+
+    function addSite() {
+        const url = document.getElementById('newUrl').value.trim();
+        const interval = parseInt(document.getElementById('newInterval').value);
+
+        if (!url || isNaN(interval) || interval < 1) {
+            alert('সঠিক URL এবং সময় দিন!');
+            return;
+        }
+
+        const newSite = {
+            id: Date.now(),
+            url: url,
+            interval: interval,
+            requestCount: 0,
+            lastCheck: 'N/A',
+            status: 'অপেক্ষমাণ'
+        };
+
+        sites.push(newSite);
+        document.getElementById('newUrl').value = '';
+        saveAndRender();
+        triggerPingManually(newSite.id); // প্রথমবার পিং টেস্ট
+    }
+
+    function removeSite(id) {
+        sites = sites.filter(s => s.id !== id);
+        saveAndRender();
+    }
+
+    async function triggerPingManually(id) {
+        const site = sites.find(s => s.id === id);
+        if (!site) return;
+
+        site.status = 'চেক করা হচ্ছে...';
+        renderSites();
+
+        try {
+            const res = await fetch(site.url, { mode: 'no-cors' });
+            site.requestCount += 1;
+            site.lastCheck = new Date().toLocaleTimeString();
+            site.status = 'অনলাইন (কাজ করছে)';
+        } catch (err) {
+            site.requestCount += 1;
+            site.lastCheck = new Date().toLocaleTimeString();
+            site.status = 'অফলাইন/ত্রুটি';
+        }
+
+        saveAndRender();
+    }
+
+    function renderSites() {
+        const tbody = document.getElementById('siteList');
+        tbody.innerHTML = '';
+
+        if (sites.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">কোনো ওয়েবসাইট যোগ করা হয়নি।</td></tr>';
+            return;
+        }
+
+        sites.forEach(site => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><a href="${site.url}" target="_blank">${site.url}</a></td>
+                <td>${site.interval} মিনিট</td>
+                <td><strong>${site.requestCount}</strong> বার</td>
+                <td>${site.lastCheck}</td>
+                <td><span class="badge ${site.status.includes('অনলাইন') ? 'badge-active' : 'badge-inactive'}">${site.status}</span></td>
+                <td>
+                    <button class="btn-add" style="padding: 3px 8px; font-size: 12px;" onclick="triggerPingManually(${site.id})">ম্যানুয়াল পিং</button>
+                    <button class="btn-delete" onclick="removeSite(${site.id})">মুছুন</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function toggleEngine(action) {
+        const user = document.getElementById('ghUser').value.trim();
+        const repo = document.getElementById('ghRepo').value.trim();
+        const token = document.getElementById('ghToken').value.trim();
+        const statusSpan = document.getElementById('engineStatus');
+
+        if (!user || !repo || !token) {
+            alert('GitHub Username, Repo এবং Access Token দিন!');
+            return;
+        }
+
+        statusSpan.style.color = 'orange';
+        statusSpan.innerText = 'অন/অফ রিকোয়েস্ট যাচ্ছে...';
+
+        const url = `https://api.github.com/repos/${user}/${repo}/actions/workflows/ping.yml/${action}`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/vnd.github+json'
+                }
+            });
+
+            if (response.status === 204) {
+                statusSpan.style.color = action === 'enable' ? 'green' : 'red';
+                statusSpan.innerText = action === 'enable' ? '▶ ইঞ্জিন চালু হয়েছে!' : '⏸ ইঞ্জিন বন্ধ করা হয়েছে!';
+            } else {
+                statusSpan.style.color = 'red';
+                statusSpan.innerText = 'ব্যর্থ হয়েছে! টোকেন/তথ্য ঠিক আছে কি না দেখুন।';
+            }
+        } catch (e) {
+            statusSpan.style.color = 'red';
+            statusSpan.innerText = 'নেটওয়ার্ক এরর!';
+        }
+    }
+
+    // পেজ লোড হলে ডাটা লোড
+    window.onload = renderSites;
+</script>
+
+</body>
+  </html>
