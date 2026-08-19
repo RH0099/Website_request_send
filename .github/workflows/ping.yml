@@ -1,27 +1,21 @@
-name: Background Multi-Site Ping Engine
+name: Website Ping Automation
 
 on:
   schedule:
-    # প্রতি ৫ মিনিট পরপর ব্যাকগ্রাউন্ড ইঞ্জিন সক্রিয় হবে
-    - cron: '*/5 * * * *'
-  workflow_dispatch:
+    # প্রতি ১৫ মিনিট পর পর রান হবে (Cron format)
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # ম্যানুয়ালি রান করার জন্য অপশন
 
 jobs:
-  ping-all-sites:
-    runs-on: ubuntu-latest
+  ping-job:
+    runs-running: ubuntu-latest
     steps:
-      - name: Send Requests to Websites
+      - name: Send HTTP Requests
         run: |
-          echo "Starting multi-site ping batch..."
-
-          # আপনার পছন্দমতো ওয়েবসাইটগুলো নিচে যোগ বা পরিবর্তন করতে পারেন
-          SITES=(
-            "https://example.com"
-            "https://google.com"
-          )
-
-          for SITE in "${SITES[@]}"; do
-            echo "Requesting: $SITE"
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "$SITE")
-            echo "Response Status Code for $SITE: $HTTP_CODE"
-          done
+          echo "Sending requests to target websites..."
+          
+          # প্রথম ওয়েবসাইট
+          curl -s -o /dev/null -w "%{http_code}" https://rh0099.github.io/Website-view3
+          
+          # দ্বিতীয় ওয়েবসাইট (প্রয়োজন হলে আরও যোগ করুন)
+          # curl -s -o /dev/null -w "%{http_code}" https://your-second-site.com
