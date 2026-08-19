@@ -19,7 +19,7 @@ jobs:
         run: |
           # যেসব সাইট চেক করতে চান সেগুলোর লিঙ্কের অ্যারে
           URLS=(
-            "https://rh0099.github.io/Website-view3"
+            "https://rh0099.github.io/Website-view3/"
             
           )
 
@@ -28,7 +28,7 @@ jobs:
 
           for url in "${URLS[@]}"; do
             # HTTP Status Code সংগ্রহ
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url")
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$url")
             
             JSON_OUTPUT+="{\"url\":\"$url\", \"status\":$HTTP_STATUS, \"last_check\":\"$TIMESTAMP\"},"
           done
