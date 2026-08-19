@@ -2,7 +2,7 @@ name: Website Ping Automation
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # প্রতি 5 মিনিট পর পর রান হবে
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -17,32 +17,50 @@ jobs:
 
       - name: Ping Websites and Log Status
         run: |
-          # যেসব সাইট চেক করতে চান সেগুলোর লিঙ্কের অ্যারে
           URLS=(
             "https://rh0099.github.io/Website-view3/"
-            
           )
 
           TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          JSON_OUTPUT="["
+          
+          # আগের status.json থেকে কাউন্ট রিড করা (না থাকলে ০ ধরে নেওয়া)
+          if [ -f status.json ]; then
+            PREV_TOTAL=$(jq '.summary.total_requests // 0' status.json)
+          else
+            PREV_TOTAL=0
+          fi
+
+          NEW_REQUESTS=${#URLS[@]}
+          TOTAL_REQUESTS=$((PREV_TOTAL + NEW_REQUESTS))
+
+          JSON_SITES="["
+          SUCCESS_COUNT=0
+          FAIL_COUNT=0
 
           for url in "${URLS[@]}"; do
-            # HTTP Status Code সংগ্রহ
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$url")
+            # -L যোগ করা হয়েছে যাতে রিডাইরেক্ট (301) হলে সঠিক রেসপন্স ফলো করে
+            HTTP_STATUS=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 5 "$url")
             
-            JSON_OUTPUT+="{\"url\":\"$url\", \"status\":$HTTP_STATUS, \"last_check\":\"$TIMESTAMP\"},"
+            if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+              SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+            else
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+            fi
+
+            JSON_SITES+="{\"url\":\"$url\", \"status\":$HTTP_STATUS, \"last_check\":\"$TIMESTAMP\"},"
           done
 
-          # শেষের কমা মুছে ফেলে JSON ফরম্যাট ঠিক করা
-          JSON_OUTPUT="${JSON_OUTPUT%,}]"
-          
-          # status.json ফাইলে ডাটা রাইট করা
-          echo "$JSON_OUTPUT" > status.json
+          JSON_SITES="${JSON_SITES%,}]"
+
+          # সামারি ডাটা তৈরি
+          FINAL_JSON="{\"summary\": {\"total_requests\": $TOTAL_REQUESTS, \"last_batch_success\": $SUCCESS_COUNT, \"last_batch_failed\": $FAIL_COUNT, \"last_check\": \"$TIMESTAMP\"}, \"sites\": $JSON_SITES}"
+
+          echo "$FINAL_JSON" > status.json
 
       - name: Commit and Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add status.json
-          git commit -m "Auto-update website status log [skip ci]" || exit 0
+          git commit -m "Update request stats [skip ci]" || exit 0
           git push
