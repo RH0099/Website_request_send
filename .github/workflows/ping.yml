@@ -2,7 +2,7 @@ name: Website Ping Automation
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/1 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -46,7 +46,7 @@ jobs:
               PING_URL="${url}?_req=${EPOCH_TIME}"
             fi
 
-            HTTP_STATUS=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 10 "$PING_URL")
+            HTTP_STATUS=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 1 "$PING_URL")
             
             if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
               SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
