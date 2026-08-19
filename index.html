@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Actions - লাইভ মনিটরিং ড্যাশবোর্ড</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #0f172a; color: #f8fafc; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; }
+        header h1 { font-size: 24px; color: #38bdf8; margin-bottom: 8px; }
+        header p { font-size: 14px; color: #94a3b8; }
+        
+        .card { background: #1e293b; border-radius: 10px; padding: 20px; margin-bottom: 15px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .url-text { font-weight: bold; font-size: 16px; color: #f1f5f9; word-break: break-all; }
+        .time-text { font-size: 12px; color: #64748b; margin-top: 5px; }
+        
+        .badge { padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; }
+        .badge-success { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
+        .badge-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+        
+        .refresh-btn { display: block; margin: 0 auto 20px auto; background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .refresh-btn:hover { background: #0369a1; }
+        #loading { text-align: center; color: #38bdf8; font-size: 18px; margin-top: 50px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>লাইভ ওয়েবসাইট রিকোয়েস্ট মনিটর</h1>
+        <p>GitHub Actions থেকে পাঠানো সর্বশেষ রিকোয়েস্টের অবস্থা</p>
+    </header>
+
+    <button class="refresh-btn" onclick="fetchStatus()">রিফ্রেশ ডাটা</button>
+
+    <div id="loading">ডাটা লোড হচ্ছে...</div>
+    <div id="statusList"></div>
+</div>
+
+<script>
+    async function fetchStatus() {
+        const loading = document.getElementById('loading');
+        const statusList = document.getElementById('statusList');
+        
+        loading.style.display = 'block';
+        statusList.innerHTML = '';
+
+        try {
+            // ক্যাশ এড়ানোর জন্য টাইমস্ট্যাম্প প্যারামিটার যুক্ত করা হয়েছে
+            const response = await fetch('status.json?t=' + new Date().getTime());
+            if (!response.ok) throw new Error("status.json ফাইল পাওয়া যায়নি");
+            
+            const data = await response.json();
+            loading.style.display = 'none';
+
+            data.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                const isSuccess = item.status >= 200 && item.status < 300;
+                const badgeClass = isSuccess ? 'badge-success' : 'badge-danger';
+                const statusMsg = isSuccess ? `অনলাইন (HTTP ${item.status})` : `সমস্যা রয়েছে (HTTP ${item.status})`;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="url-text">${item.url}</div>
+                        <div class="time-text">সর্বশেষ চেক: ${item.last_check}</div>
+                    </div>
+                    <div>
+                        <span class="badge ${badgeClass}">${statusMsg}</span>
+                    </div>
+                `;
+                statusList.appendChild(card);
+            });
+        } catch (error) {
+            loading.innerText = 'ডাটা লোড করতে ব্যর্থ! GitHub Actions এখনো প্রথমবার রান হয়নি বা status.json তৈরি হয়নি।';
+            loading.style.color = '#ef4444';
+        }
+    }
+
+    // পেজ লোড হলে ডাটা ফেচ হবে
+    window.onload = fetchStatus;
+</script>
+
+</body>
+</html>
