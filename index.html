@@ -3,15 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Actions - লাইভ মনিটরিং ড্যাশবোর্ড</title>
+    <title>লাইভ ওয়েবসাইট রিকোয়েস্ট মনিটর</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #0f172a; color: #f8fafc; padding: 20px; }
         .container { max-width: 900px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 30px; }
+        header { text-align: center; margin-bottom: 25px; }
         header h1 { font-size: 24px; color: #38bdf8; margin-bottom: 8px; }
         header p { font-size: 14px; color: #94a3b8; }
         
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
+        .stat-number { font-size: 28px; font-weight: bold; color: #38bdf8; margin-top: 5px; }
+        .stat-label { font-size: 12px; color: #94a3b8; }
+
         .card { background: #1e293b; border-radius: 10px; padding: 20px; margin-bottom: 15px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
         .url-text { font-weight: bold; font-size: 16px; color: #f1f5f9; word-break: break-all; }
         .time-text { font-size: 12px; color: #64748b; margin-top: 5px; }
@@ -30,8 +36,20 @@
 <div class="container">
     <header>
         <h1>লাইভ ওয়েবসাইট রিকোয়েস্ট মনিটর</h1>
-        <p>GitHub Actions থেকে পাঠানো সর্বশেষ রিকোয়েস্টের অবস্থা</p>
+        <p>GitHub Actions অটোমেশন ট্র্যাকার</p>
     </header>
+
+    <!-- Stats Section -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">সর্বমোট পাঠানো রিকোয়েস্ট</div>
+            <div class="stat-number" id="totalRequests">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">সর্বশেষ রান ফলাফল</div>
+            <div class="stat-number" id="lastStatus" style="font-size: 20px;">-</div>
+        </div>
+    </div>
 
     <button class="refresh-btn" onclick="fetchStatus()">রিফ্রেশ ডাটা</button>
 
@@ -48,18 +66,25 @@
         statusList.innerHTML = '';
 
         try {
-            // ক্যাশ এড়ানোর জন্য টাইমস্ট্যাম্প প্যারামিটার যুক্ত করা হয়েছে
             const response = await fetch('status.json?t=' + new Date().getTime());
-            if (!response.ok) throw new Error("status.json ফাইল পাওয়া যায়নি");
+            if (!response.ok) throw new Error("status.json পাওয়া যায়নি");
             
             const data = await response.json();
             loading.style.display = 'none';
 
-            data.forEach(item => {
+            // Stats Update
+            if(data.summary) {
+                document.getElementById('totalRequests').innerText = data.summary.total_requests || 0;
+                document.getElementById('lastStatus').innerText = `${data.summary.last_batch_success}টি সফল / ${data.summary.last_batch_failed}টি ব্যর্থ`;
+            }
+
+            // Sites List Render
+            const sites = data.sites || data;
+            sites.forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'card';
 
-                const isSuccess = item.status >= 200 && item.status < 300;
+                const isSuccess = item.status >= 200 && item.status < 400;
                 const badgeClass = isSuccess ? 'badge-success' : 'badge-danger';
                 const statusMsg = isSuccess ? `অনলাইন (HTTP ${item.status})` : `সমস্যা রয়েছে (HTTP ${item.status})`;
 
@@ -75,12 +100,11 @@
                 statusList.appendChild(card);
             });
         } catch (error) {
-            loading.innerText = 'ডাটা লোড করতে ব্যর্থ! GitHub Actions এখনো প্রথমবার রান হয়নি বা status.json তৈরি হয়নি।';
+            loading.innerText = 'ডাটা লোড হতে ব্যর্থ হয়েছে। Actions অপশন থেকে ম্যানুয়ালি একবার Workflow রান করুন।';
             loading.style.color = '#ef4444';
         }
     }
 
-    // পেজ লোড হলে ডাটা ফেচ হবে
     window.onload = fetchStatus;
 </script>
 
