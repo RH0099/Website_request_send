@@ -34,7 +34,7 @@ jobs:
           done
 
           # শেষের কমা মুছে ফেলে JSON ফরম্যাট ঠিক করা
-          JSON_OUTPUT="${JSON_OUTPUT%}]"
+          JSON_OUTPUT="${JSON_OUTPUT%,}]"
           
           # status.json ফাইলে ডাটা রাইট করা
           echo "$JSON_OUTPUT" > status.json
